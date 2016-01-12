@@ -32,31 +32,27 @@ i2=0.005
 d1=0.00025
 d2=0.00025
 s=10000       # Set point (millidegrees)
-#smax=30000 
+#smax=30000   # need to figure how dynamic setpoint could work
 #smin=0
-#expand to one per sensor per cdev
+#expand setpoint to one per sensor per cdev?
 pwm_min1=70
-pwm_min2=20
 pwm_max1=255
-pwm_max2=255                 #swap out for cdev naming convention next
-#cdev1min=70
-#cdev1max=255
-#cdev1mintrip=10000          # below this temp cedevstate=cdevmin
-#cedv1maxtrip                # max at this temp regardless of OP
-#cdev2min=20
-#cdev2max=255
-#cdev2mintrip
-#cdev2maxtrip
+#pwm1_mintrip=7000
+#pwm1_maxtrip=25000
+pwm_min2=20
+pwm_max2=255 #swap out for cdev naming convention next
+#pwm2_mintrip=7000
+#pwm2_maxtrip=25000
 half=0.5
-C1=73      # controller bias values (Integration constants)
-C2=11      #
-I1max=255  # Max value of integrator 1
-I1min=-20  # Min value of integrator 1
-I1init=50  # initial value of integrator 1
-I2max=255  # Max value of integrator 2
-I2min=-20  # Min value of integrator 2
-I2init=20  # initial value of integator 2
-Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed), sleep
+C1=73        # controller bias values (Integration constants)
+C2=11        #
+I1max=255    # Max value of integrator 1
+I1min=-20    # Min value of integrator 1
+I1init=50    # initial value of integrator 1
+I2max=255    # Max value of integrator 2
+I2min=-20    # Min value of integrator 2
+I2init=20    # initial value of integator 2
+Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
 #Tmaxcmd     #additional command to run when Tmax reched 
 Tmaxhyst=15000    #Hysteresis value for Tmax. Script starts from beginning once reached
 #Tmaxhystcmd #additional command to run when Tmaxhyst reached
@@ -69,12 +65,12 @@ Tmaxhyst=15000    #Hysteresis value for Tmax. Script starts from beginning once 
 #temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input
 ######################################################################
 echo 1 > /sys/devices/platform/it87.552/pwm1_enable &           #enable pwm
-echo 1 > /sys/devices/platform/it87.552/pwm3_enable &          #enable pwm
+echo 1 > /sys/devices/platform/it87.552/pwm3_enable &           #enable pwm
 wait
 
-#echo 255 > /sys/devices/platform/it87.552/pwm1 &           #set initial pwm here
-#echo 255 > /sys/devices/platform/it87.552/pwm3 &           #set initial pwm here
-#sleep 5                                                    #use if you want a running start
+#echo 255 > /sys/devices/platform/it87.552/pwm1 &                             #set initial pwm here
+#echo 255 > /sys/devices/platform/it87.552/pwm3 &                             #set initial pwm here
+#sleep 5                                                                      #use if you want a running start
 pwm_old1=$(cat /sys/devices/platform/it87.552/pwm1)                           #setup pwm_old
 pwm_old2=$(cat /sys/devices/platform/it87.552/pwm3)                           #setup pwm_old
 pwm_raw1=$pwm_old1                                                            #setup raw pwm
