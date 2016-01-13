@@ -25,24 +25,28 @@
 ################initialisation:
 
 dt=0.5        # Time base
-p1=0.05       # unit is pwm/millidegree
-p2=0.05
+p1=0.025       # unit is pwm/millidegree
+p2=0.025
 i1=0.005      # pwm seconds per millidegree
 i2=0.005
-d1=0.00025
-d2=0.00025
-s=10000       # Set point (millidegrees)
+d1=0.00125
+d2=0.00125
+s=15000       # Set point (millidegrees)
 #smax=30000   # need to figure how dynamic setpoint could work
 #smin=0
 #expand setpoint to one per sensor per cdev?
-pwm_min1=70
+pwm_min1=70 #these are global values
 pwm_max1=255
-#pwm1_mintrip=7000
-#pwm1_maxtrip=25000
+pwm1_mintrip=14500
+pwm_min1_1=70 #pwm when below this point
+pwm1_maxtrip=15500
+pwm_max1_1=255 #pwm when over this point
 pwm_min2=20
-pwm_max2=255 #swap out for cdev naming convention next
-#pwm2_mintrip=7000
-#pwm2_maxtrip=25000
+pwm_max2=255 
+pwm2_mintrip=14500
+pwm_min2_1=20
+pwm2_maxtrip=15500
+pwm_max2_1=255
 half=0.5
 C1=73        # controller bias values (Integration constants)
 C2=11        #
@@ -100,12 +104,14 @@ E1=$(($T1 - $s))
 T0=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
 E0=$(($T0 - $s))
 
+O1=$C1
+O2=$C2
 I1=$I1init
 I2=$I2init
 ##begin main loop
 
 while [ $T0 -lt $Tmax ] #break loop when T>Tmax
-       do {
+       do time {
           T5=$T4
           T4=$T3
           T3=$T2
@@ -139,61 +145,43 @@ echo pwm_new1 = $pwm_new1 pwm_new2 = $pwm_new2
 
 
 ###########PID part-do for both sets of constants
+###################pwm1######################
+if [ $T0 -gt $pwm1_maxtrip ]
+ then
+ pwm_new1=$pwm_max1_1
+ pwm_raw1=$pwm_max1_1
+ elif [ $T0 -lt $pwm1_mintrip ]
+ then
+ pwm_new1=$pwm_min1_1
+ pwm_raw1=$pwm_min1_1
+ else
+
+{
+
 #Integral - trapezium rule with min/max values
 I1=$(echo "(($i1 * $dt * $half * ($E0 + $E1)) + $I1 )" | bc -l)
-I2=$(echo "(($i2 * $dt * $half * ($E0 + $E1)) + $I2 )" | bc -l)
-
-#######min/max values to help with windup
 I1int=$(echo "($I1 + 0.5)/1" | bc)               #now an integer
-I2int=$(echo "($I2 + 0.5)/1" | bc)
-
 if [ $I1int -gt $I1max ]
- then
- I1=$I1max
- elif [ $I1int -lt $I1min ]
- then
- I1=$I1min
- else
-:
+  then
+  I1=$I1max
+  elif [ $I1int -lt $I1min ]
+  then
+  I1=$I1min
+  else
+  :
 fi
-
-if [ $I2int -gt $I2max ]
- then
- I2=$I2max
- elif [ $I2int -lt $I2min ]
- then
- I2=$I2min
- else
-:
-fi
-########################
-
 
 #(derivative- use simple definition)
 #D= d * (err_last - err_now) / dt
-
 #simple derivative
 #D1=$(echo "$d1 *  $(($E0 - $E1)) / $dt" | bc -l)
-#D2=$(echo "$d2 *  $(($E0 - $E1)) / $dt" | bc -l)
-
 #weighted average
 D1=$(echo "$d1 *  (($(($E0 - $E1)) / $dt) + $(($E0 - $E2)) / (4 * $dt) + $(($E0 - $E3)) / (6 * $dt) + $(($E0 - $E4)) / (8 * $dt) + $(($E0 - $E5)) / (10 * $dt))" | bc -l)
-D2=$(echo "$d2 *  (($(($E0 - $E1)) / $dt) + $(($E0 - $E2)) / (4 * $dt) + $(($E0 - $E3)) / (6 * $dt) + $(($E0 - $E4)) / (8 * $dt) + $(($E0 - $E5)) / (10 * $dt))" | bc -l)
-
 # Proportional term
 P1=$(echo "$p1 * $E0" | bc -l)
-P2=$(echo "$p2 * $E0" | bc -l)
-
-#output O=P+I+D
 O1=$(echo "$P1 + $I1 + $D1" | bc -l)
-O2=$(echo "$P2 + $I2 + $D2" | bc -l)
-
 pwm_raw1=$(echo "$C1 + $O1" | bc -l) # add the constants in
-pwm_raw2=$(echo "$C2 + $O2" | bc -l) #
-
 pwm_new1=$(echo "($pwm_raw1 + 0.5)/1" | bc) #now an integer
-pwm_new2=$(echo "($pwm_raw2 + 0.5)/1" | bc)
-
 if [ $pwm_new1 -gt $pwm_max1 ]
  then
  pwm_new1=$pwm_max1
@@ -205,26 +193,58 @@ if [ $pwm_new1 -gt $pwm_max1 ]
  else
 :
 fi
+pwm_old1=$(echo "($pwm_raw1 + $O1 + 0.5)/1" | bc) #need to call from these raw values
+ }
+fi
+echo $pwm_new1 > /sys/devices/platform/it87.552/pwm1 &          #these lines do the fanspeed
+########################end of pwm1################
+##############################pwm2#################
+if [ $T0 -gt $pwm2_maxtrip ]
+ then
+ pwm_new2=$pwm_max2_1
+ pwm_raw2=$pwm_max2_1
+ elif [ $T0 -lt $pwm2_mintrip ]
+ then
+ pwm_new2=$pwm_min2_1
+ pwm_raw2=$pwm_min2_1
+ else
 
+{
 
-if [ $pwm_new2 -gt $pwm_max2 ] 
+I2=$(echo "(($i2 * $dt * $half * ($E0 + $E1)) + $I2 )" | bc -l)
+I2int=$(echo "($I2 + 0.5)/1" | bc)
+if [ $I2int -gt $I2max ]
+ then
+ I2=$I2max
+ elif [ $I2int -lt $I2min ]
+ then
+ I2=$I2min
+ else
+:
+fi
+#D2=$(echo "$d2 *  $(($E0 - $E1)) / $dt" | bc -l)
+D2=$(echo "$d2 *  (($(($E0 - $E1)) / $dt) + $(($E0 - $E2)) / (4 * $dt) + $(($E0 - $E3)) / (6 * $dt) + $(($E0 - $E4)) / (8 * $dt) + $(($E0 - $E5)) / (10 * $dt))" | bc -l)
+P2=$(echo "$p2 * $E0" | bc -l)
+#output O=P+I+D
+O2=$(echo "$P2 + $I2 + $D2" | bc -l)
+pwm_raw2=$(echo "$C2 + $O2" | bc -l) #
+pwm_new2=$(echo "($pwm_raw2 + 0.5)/1" | bc)
+if [ $pwm_new2 -gt $pwm_max2 ]
  then
  pwm_new2=$pwm_max2
  pwm_raw2=$pwm_max2
- elif [ $pwm_new2 -lt $pwm_min2 ]  
+ elif [ $pwm_new2 -lt $pwm_min2 ]
  then
  pwm_new2=$pwm_min2
  pwm_raw2=$pwm_min2
  else
 :
 fi
-
-echo $pwm_new1 > /sys/devices/platform/it87.552/pwm1 &          #these lines do the fanspeed
+pwm_old2=$(echo "($pwm_raw2 + $O2 + 0.5)/1" | bc)
+ }
+fi
 echo $pwm_new2 > /sys/devices/platform/it87.552/pwm3 &           #change. be careful.
-wait
-##write new values into old, then we can loop
-pwm_old1=$(echo "($pwm_raw1 + $O1 + 0.5)/1" | bc) #need to call from these raw values
-pwm_old2=$(echo "($pwm_raw2 + $O1 + 0.5)/1" | bc) #need to call from these raw values
+
  }
 done
 
