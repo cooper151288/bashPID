@@ -37,15 +37,15 @@ s=15000       # Set point (millidegrees)
 #expand setpoint to one per sensor per cdev?
 pwm_min1=70 #these are global values
 pwm_max1=255
-pwm1_mintrip=14500
+pwm1_mintrip=14000
 pwm_min1_1=70 #pwm when below this point
-pwm1_maxtrip=15500
+pwm1_maxtrip=16000
 pwm_max1_1=255 #pwm when over this point
 pwm_min2=20
-pwm_max2=255 
-pwm2_mintrip=14500
+pwm_max2=255
+pwm2_mintrip=14000
 pwm_min2_1=20
-pwm2_maxtrip=15500
+pwm2_maxtrip=16000
 pwm_max2_1=255
 half=0.5
 C1=73        # controller bias values (Integration constants)
@@ -60,48 +60,48 @@ Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspe
 #Tmaxcmd     #additional command to run when Tmax reched 
 Tmaxhyst=15000    #Hysteresis value for Tmax. Script starts from beginning once reached
 #Tmaxhystcmd #additional command to run when Tmaxhyst reached
-#SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
-#cdev1path=$SuperIo/pwm1
-#cdev1en=$SuperIo/pwm1_enable
-#cdev2path=$SuperIo/pwm3
-#cdev2en=$SuperIo/pwm3_enable
-#fan=$SuperIo/fan1_input
-#temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input
+SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
+pwm1path=$SuperIo/pwm1
+pwm1en=$SuperIo/pwm1_enable
+pwm2path=$SuperIo/pwm3
+pwm2en=$SuperIo/pwm3_enable
+fan=$SuperIo/fan1_input
+temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input
 ######################################################################
-echo 1 > /sys/devices/platform/it87.552/pwm1_enable &           #enable pwm
-echo 1 > /sys/devices/platform/it87.552/pwm3_enable &           #enable pwm
+echo 1 > $pwm1en &           #enable pwm
+echo 1 > $pwm2en &           #enable pwm
 wait
 
-#echo 255 > /sys/devices/platform/it87.552/pwm1 &                             #set initial pwm here
-#echo 255 > /sys/devices/platform/it87.552/pwm3 &                             #set initial pwm here
+#echo 255 > $pwm1path &                             #set initial pwm here
+#echo 255 > $pwm2path &                             #set initial pwm here
 #sleep 5                                                                      #use if you want a running start
-pwm_old1=$(cat /sys/devices/platform/it87.552/pwm1)                           #setup pwm_old
-pwm_old2=$(cat /sys/devices/platform/it87.552/pwm3)                           #setup pwm_old
+pwm_old1=$(cat $pwm1path)                           #setup pwm_old
+pwm_old2=$(cat $pwm2path)                           #setup pwm_old
 pwm_raw1=$pwm_old1                                                            #setup raw pwm
 pwm_raw2=$pwm_old2
 
 ##set up old temps - only needed for weighted average derivative
-T5=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+T5=$(cat $temp1)
 E5=$(($T5 - $s))
 #sleep $dt
 
-T4=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+T4=$(cat $temp1)
 E4=$(($T4 - $s))
 #sleep $dt
 
-T3=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+T3=$(cat $temp1)
 E3=$(($T3 - $s))
 #sleep $dt
 
-T2=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+T2=$(cat $temp1)
 E2=$(($T2 - $s))
 #sleep $dt
 
-T1=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+T1=$(cat $temp1)
 E1=$(($T1 - $s))
 #sleep $dt
 
-T0=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+T0=$(cat $temp1)
 E0=$(($T0 - $s))
 
 O1=$C1
@@ -125,16 +125,16 @@ while [ $T0 -lt $Tmax ] #break loop when T>Tmax
 #########
 sleep $dt
 #########
-       T0=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+       T0=$(cat $temp1)
        E0=$(($T0 - $s))
 ##temp functions now stored
 ##################################console output for user
 clear
 date
 echo s = $s
-echo pwm1 $(cat /sys/devices/platform/it87.552/pwm1)
-echo pwm2 $(cat /sys/devices/platform/it87.552/pwm3)
-echo Fan Speed = $(cat /sys/devices/platform/it87.552/fan1_input) 
+echo pwm1 $(cat $pwm1path)
+echo pwm2 $(cat $pwm2path)
+echo Fan Speed = $(cat $SuperIo/fan1_input) 
 echo pwm_raw1 = $pwm_raw1 pwm_raw2 = $pwm_raw2
 echo P1 = $P1, P2 = $P2, I1 = $I1, I2 = $I2, D1 = $D1, D2 = $D2
 echo O1 = $O1 O2 = $O2
@@ -196,7 +196,7 @@ fi
 pwm_old1=$(echo "($pwm_raw1 + $O1 + 0.5)/1" | bc) #need to call from these raw values
  }
 fi
-echo $pwm_new1 > /sys/devices/platform/it87.552/pwm1 &          #these lines do the fanspeed
+echo $pwm_new1 > $pwm1path &          #these lines do the fanspeed
 ########################end of pwm1################
 ##############################pwm2#################
 if [ $T0 -gt $pwm2_maxtrip ]
@@ -243,7 +243,7 @@ fi
 pwm_old2=$(echo "($pwm_raw2 + $O2 + 0.5)/1" | bc)
  }
 fi
-echo $pwm_new2 > /sys/devices/platform/it87.552/pwm3 &           #change. be careful.
+echo $pwm_new2 > $pwm2path &           #change. be careful.
 
  }
 done
@@ -251,15 +251,15 @@ done
 #loop broken for cooling and reinitialisation
 
 echo Too hot, fans on max
-echo $pwm_max1 > /sys/devices/platform/it87.552/pwm1 &          #these lines do the fanspeed
-echo $pwm_max2 > /sys/devices/platform/it87.552/pwm3 &           #change. be careful.
-echo 0 > /sys/devices/platform/it87.552/pwm1_enable
-echo 0 > /sys/devices/platform/it87.552/pwm3_enable
+echo $pwm_max1 > $pwm1path &          #these lines do the fanspeed
+echo $pwm_max2 > $pwm2path &           #change. be careful.
+echo 0 > $pwm1en
+echo 0 > $pwm2en
 
 
 until [ $T0 -lt $Tmaxhyst ]
   do sleep 1
-  T0=$(cat /sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input)
+  T0=$(cat $temp1)
   echo T0 = $T0
 done
 exec $0 #start from the beginning when cool
