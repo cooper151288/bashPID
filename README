@@ -6,9 +6,9 @@ USE AT YOUR OWN RISK
 This is my first program with any real use, so if anyone has ways of improving the script and helping me learn, feel free to make this better!
 TODO:
 -config file
--easier temp/cdev paths
+-easier temp/cdev paths ## now using variables for pathnames
 -better anti-windup
--other cooling controls
+-other cooling controls ie cpufreq, ACPI throttle
 -parallelism/concurrency (thinking of a subprocess per trip point)
 -online parameter adjustment
 -autotune
