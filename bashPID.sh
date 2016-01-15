@@ -6,15 +6,8 @@
 # -The initialisation part looks like it would
 #  be better off in a .conf
 #
-# - should be easy enough to make sensor/cdev
-#   path and min/max vars superIO chip
-#   name may be useful as most users pwms
-#   and enable flags are there
-#
-#
 # - ACPI and cpufreq throttling look like they
 #   can be implemented here in the same fashion
-#
 #
 # - Would precision timing be better? Code
 #   assumes that calculation time is negligible,
@@ -74,10 +67,10 @@ wait
 
 #echo 255 > $pwm1path &                             #set initial pwm here
 #echo 255 > $pwm2path &                             #set initial pwm here
-#sleep 5                                                                      #use if you want a running start
+#sleep 5                                            #use if you want a running start
 pwm_old1=$(cat $pwm1path)                           #setup pwm_old
 pwm_old2=$(cat $pwm2path)                           #setup pwm_old
-pwm_raw1=$pwm_old1                                                            #setup raw pwm
+pwm_raw1=$pwm_old1                                  #setup raw pwm
 pwm_raw2=$pwm_old2
 
 ##set up old temps - only needed for weighted average derivative
@@ -244,7 +237,7 @@ pwm_old2=$(echo "($pwm_raw2 + $O2 + 0.5)/1" | bc)
  }
 fi
 echo $pwm_new2 > $pwm2path &           #change. be careful.
-
+################################end of pwm2##################
  }
 done
 
