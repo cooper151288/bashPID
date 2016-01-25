@@ -59,7 +59,7 @@ pwm1en=$SuperIo/pwm1_enable
 pwm2path=$SuperIo/pwm3
 pwm2en=$SuperIo/pwm3_enable
 fan=$SuperIo/fan1_input
-temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input
+temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
 ######################################################################
 echo 1 > $pwm1en &           #enable pwm
 echo 1 > $pwm2en &           #enable pwm
