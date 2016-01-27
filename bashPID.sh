@@ -17,41 +17,39 @@
 #DESIRED: online tuning and autotune
 ################initialisation:
 
-dt=0.5        # Time base
-p1=0.025       # unit is pwm/millidegree
-p2=0.025
+dt=1        # Time base
+p1=0.05       # unit is pwm/millidegree
+p2=0.05
 i1=0.005      # pwm seconds per millidegree
 i2=0.005
-d1=0.00125
-d2=0.00125
-s=15000       # Set point (millidegrees)
-#smax=30000   # need to figure how dynamic setpoint could work
-#smin=0
-#expand setpoint to one per sensor per cdev?
-pwm_min1=70 #these are global values
+d1=0.000005
+d2=0.000005
+s1=30000
+s2=15000 # Set point (millidegrees)
+pwm_min1=120 #these are global values
 pwm_max1=255
-pwm1_mintrip=14000
-pwm_min1_1=70 #pwm when below this point
-pwm1_maxtrip=16000
+pwm1_mintrip=25000
+pwm_min1_1=120 #pwm when below this point
+pwm1_maxtrip=35000
 pwm_max1_1=255 #pwm when over this point
-pwm_min2=20
+pwm_min2=0
 pwm_max2=255
-pwm2_mintrip=14000
-pwm_min2_1=20
-pwm2_maxtrip=16000
+pwm2_mintrip=10000
+pwm_min2_1=0
+pwm2_maxtrip=17000
 pwm_max2_1=255
 half=0.5
-C1=73        # controller bias values (Integration constants)
-C2=11        #
-I1max=255    # Max value of integrator 1
-I1min=-20    # Min value of integrator 1
-I1init=50    # initial value of integrator 1
-I2max=255    # Max value of integrator 2
-I2min=-20    # Min value of integrator 2
-I2init=20    # initial value of integator 2
-Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
-#Tmaxcmd     #additional command to run when Tmax reched 
-Tmaxhyst=15000    #Hysteresis value for Tmax. Script starts from beginning once reached
+C1=50       # controller bias values (Integration constants)
+C2=50       #
+I1max=180    # Max value of integrator 1
+I1min=0    # Min value of integrator 1
+I1init=100    # initial value of integrator 1
+I2max=235    # Max value of integrator 2
+I2min=0   # Min value of integrator 2
+I2init=100    # initial value of integator 2
+Tmax=55000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
+#Tmaxcmd     #additional command to run when Tmax reched
+Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
 #Tmaxhystcmd #additional command to run when Tmaxhyst reached
 SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
 pwm1path=$SuperIo/pwm1
@@ -59,7 +57,7 @@ pwm1en=$SuperIo/pwm1_enable
 pwm2path=$SuperIo/pwm3
 pwm2en=$SuperIo/pwm3_enable
 fan=$SuperIo/fan1_input
-temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon2/temp1_input
+temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
 ######################################################################
 echo 1 > $pwm1en &           #enable pwm
 echo 1 > $pwm2en &           #enable pwm
@@ -72,30 +70,24 @@ pwm_old1=$(cat $pwm1path)                           #setup pwm_old
 pwm_old2=$(cat $pwm2path)                           #setup pwm_old
 pwm_raw1=$pwm_old1                                  #setup raw pwm
 pwm_raw2=$pwm_old2
-
 ##set up old temps - only needed for weighted average derivative
 T5=$(cat $temp1)
-E5=$(($T5 - $s))
+#E5=$(($T5 - $s1))
 #sleep $dt
-
 T4=$(cat $temp1)
-E4=$(($T4 - $s))
+#E4=$(($T4 - $s1))
 #sleep $dt
-
 T3=$(cat $temp1)
-E3=$(($T3 - $s))
+#E3=$(($T3 - $s1))
 #sleep $dt
-
 T2=$(cat $temp1)
-E2=$(($T2 - $s))
+#E2=$(($T2 - $s1))
 #sleep $dt
-
 T1=$(cat $temp1)
-E1=$(($T1 - $s))
+#E1=$(($T1 - $s1))
 #sleep $dt
-
 T0=$(cat $temp1)
-E0=$(($T0 - $s))
+#E0=$(($T0 - $s1))
 
 O1=$C1
 O2=$C2
@@ -110,21 +102,16 @@ while [ $T0 -lt $Tmax ] #break loop when T>Tmax
           T3=$T2
           T2=$T1
           T1=$T0
-          E5=$(($T5 - $s))
-          E4=$(($T4 - $s))
-          E3=$(($T3 - $s))
-          E2=$(($T2 - $s))
-          E1=$(($T1 - $s))
+
 #########
 sleep $dt
 #########
        T0=$(cat $temp1)
-       E0=$(($T0 - $s))
 ##temp functions now stored
 ##################################console output for user
 clear
 date
-echo s = $s
+echo s1 = $s1 s2 = $s2
 echo pwm1 $(cat $pwm1path)
 echo pwm2 $(cat $pwm2path)
 echo Fan Speed = $(cat $SuperIo/fan1_input) 
@@ -150,7 +137,12 @@ if [ $T0 -gt $pwm1_maxtrip ]
  else
 
 {
-
+          E5=$(($T5 - $s1))
+          E4=$(($T4 - $s1))
+          E3=$(($T3 - $s1))
+          E2=$(($T2 - $s1))
+          E1=$(($T1 - $s1))
+          E0=$(($T0 - $s1))
 #Integral - trapezium rule with min/max values
 I1=$(echo "(($i1 * $dt * $half * ($E0 + $E1)) + $I1 )" | bc -l)
 I1int=$(echo "($I1 + 0.5)/1" | bc)               #now an integer
@@ -175,14 +167,14 @@ P1=$(echo "$p1 * $E0" | bc -l)
 O1=$(echo "$P1 + $I1 + $D1" | bc -l)
 pwm_raw1=$(echo "$C1 + $O1" | bc -l) # add the constants in
 pwm_new1=$(echo "($pwm_raw1 + 0.5)/1" | bc) #now an integer
-if [ $pwm_new1 -gt $pwm_max1 ]
+if [ $pwm_new1 -gt $pwm_max1_1 ]
  then
- pwm_new1=$pwm_max1
- pwm_raw1=$pwm_max1
- elif [ $pwm_new1 -lt $pwm_min1 ]
+ pwm_new1=$pwm_max1_1
+ pwm_raw1=$pwm_max1_1
+ elif [ $pwm_new1 -lt $pwm_min1_1 ]
  then
- pwm_new1=$pwm_min1
- pwm_raw1=$pwm_min1
+ pwm_new1=$pwm_min1_1
+ pwm_raw1=$pwm_min1_1
  else
 :
 fi
@@ -203,7 +195,12 @@ if [ $T0 -gt $pwm2_maxtrip ]
  else
 
 {
-
+          E5=$(($T5 - $s2))
+          E4=$(($T4 - $s2))
+          E3=$(($T3 - $s2))
+          E2=$(($T2 - $s2))
+          E1=$(($T1 - $s2))
+          E0=$(($T0 - $s2))
 I2=$(echo "(($i2 * $dt * $half * ($E0 + $E1)) + $I2 )" | bc -l)
 I2int=$(echo "($I2 + 0.5)/1" | bc)
 if [ $I2int -gt $I2max ]
@@ -222,14 +219,14 @@ P2=$(echo "$p2 * $E0" | bc -l)
 O2=$(echo "$P2 + $I2 + $D2" | bc -l)
 pwm_raw2=$(echo "$C2 + $O2" | bc -l) #
 pwm_new2=$(echo "($pwm_raw2 + 0.5)/1" | bc)
-if [ $pwm_new2 -gt $pwm_max2 ]
+if [ $pwm_new2 -gt $pwm_max2_1 ]
  then
- pwm_new2=$pwm_max2
- pwm_raw2=$pwm_max2
- elif [ $pwm_new2 -lt $pwm_min2 ]
+ pwm_new2=$pwm_max2_1
+ pwm_raw2=$pwm_max2_1
+ elif [ $pwm_new2 -lt $pwm_min2_1 ]
  then
- pwm_new2=$pwm_min2
- pwm_raw2=$pwm_min2
+ pwm_new2=$pwm_min2_1
+ pwm_raw2=$pwm_min2_1
  else
 :
 fi
@@ -244,8 +241,8 @@ done
 #loop broken for cooling and reinitialisation
 
 echo Too hot, fans on max
-echo $pwm_max1 > $pwm1path &          #these lines do the fanspeed
-echo $pwm_max2 > $pwm2path &           #change. be careful.
+echo $pwm_max1 > $pwm1path &
+echo $pwm_max2 > $pwm2path &
 echo 0 > $pwm1en
 echo 0 > $pwm2en
 
