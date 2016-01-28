@@ -1,0 +1,44 @@
+################initialisation:
+
+dt=1        # Time base
+p1=0.05       # unit is pwm/millidegree
+p2=0.05
+i1=0.005      # pwm seconds per millidegree
+i2=0.005
+d1=0.000005
+d2=0.000005
+s1=30000
+s2=15000 # Set point (millidegrees)
+pwm_min1=120 #these are global values
+pwm_max1=255
+pwm1_mintrip=25000
+pwm_min1_1=120 #pwm when below this point
+pwm1_maxtrip=35000
+pwm_max1_1=255 #pwm when over this point
+pwm_min2=0
+pwm_max2=255
+pwm2_mintrip=10000
+pwm_min2_1=0
+pwm2_maxtrip=17000
+pwm_max2_1=255
+half=0.5
+C1=50       # controller bias values (Integration constants)
+C2=50       #
+I1max=180    # Max value of integrator 1
+I1min=0    # Min value of integrator 1
+I1init=100    # initial value of integrator 1
+I2max=235    # Max value of integrator 2
+I2min=0   # Min value of integrator 2
+I2init=100    # initial value of integator 2
+Tmax=55000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
+#Tmaxcmd     #additional command to run when Tmax reched
+Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
+#Tmaxhystcmd #additional command to run when Tmaxhyst reached
+SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
+pwm1path=$SuperIo/pwm1
+pwm1en=$SuperIo/pwm1_enable
+pwm2path=$SuperIo/pwm3
+pwm2en=$SuperIo/pwm3_enable
+fan=$SuperIo/fan1_input
+temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
+####################################################################
