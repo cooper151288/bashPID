@@ -24,13 +24,13 @@ i1=0.0025      # pwm seconds per millidegree
 i2=0.0025
 d1=0.0000025
 d2=0.0000025
-s1=30000
+s1=25000
 s2=15000 # Set point (millidegrees)
 #pwm_min1=110 #these are global values
 pwm_max1=255 #used for broken loop, best to leave at max
-pwm1_mintrip=25000
+pwm1_mintrip=22500
 pwm_min1_1=100 #pwm when below this point
-pwm1_maxtrip=32500
+pwm1_maxtrip=27500
 pwm_max1_1=255 #pwm when over this point
 pwm_min2=0
 pwm_max2=255
@@ -47,7 +47,7 @@ I1init=110    # initial value of integrator 1
 I2max=180    # Max value of integrator 2
 I2min=-20   # Min value of integrator 2
 I2init=100    # initial value of integator 2
-Tmax=40000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
+Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
 #Tmaxcmd     #additional command to run when Tmax reched
 Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
 #Tmaxhystcmd #additional command to run when Tmaxhyst reached
@@ -255,6 +255,46 @@ pwm_old2=$(echo "($pwm_raw2 + $O2 + 0.5)/1" | bc)
 fi
 echo $pwm_new2 > $pwm2path &           #change. be careful.
 ################################end of pwm2##################
+#########frequency scaler#####
+      
+    if [ $T0 -gt $t5 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f5
+        done
+         }
+    elif [ $T0 -gt $t4 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f4
+           done
+            }
+     elif [ $T0 -gt $t3 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f3
+           done
+            }
+    elif [ $T0 -gt $t2 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f2
+           done
+            }
+    elif [ $T0 -gt $t1 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f1
+           done
+            }
+    elif [ $T0 -lt $t1 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f0
+           done
+            }
+        fi 
+#############end of frequency scaler
  }
 done
 
@@ -271,19 +311,45 @@ echo 0 > $pwm2en
 
 
 until [ $T0 -lt $Tmaxhyst ]
-  do sleep 1
+  do sleep 0.25
   T0=$(cat $temp1)
   echo T0 = $T0
-#  for j in 5 4 3 2 1 0
-#    do { 
-#    if [ T0 -lt '$'t$j ]
-#      then { 
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u f$j
-#        done
-#         }
-#        fi
-#         }
-#  done
+    if [ $T0 -gt $t5 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f5
+        done
+         }
+    elif [ $T0 -gt $t4 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f4
+           done
+            }
+     elif [ $T0 -gt $t3 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f3
+           done
+            }
+    elif [ $T0 -gt $t2 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f2
+           done
+            }
+    elif [ $T0 -gt $t1 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f1
+           done
+            }
+    elif [ $T0 -lt $t1 ]
+      then { 
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f0
+           done
+            }
+        fi 
 done
 exec $0 #start from the beginning when cool
