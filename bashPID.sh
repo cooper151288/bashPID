@@ -18,36 +18,36 @@
 ################initialisation:
 
 dt=1        # Time base
-p1=0.05       # unit is pwm/millidegree
-p2=0.05
-i1=0.005      # pwm seconds per millidegree
-i2=0.005
-d1=0.000005
-d2=0.000005
+p1=0.025       # unit is pwm/millidegree
+p2=0.025
+i1=0.0025      # pwm seconds per millidegree
+i2=0.0025
+d1=0.0000025
+d2=0.0000025
 s1=30000
 s2=15000 # Set point (millidegrees)
-pwm_min1=120 #these are global values
-pwm_max1=255
+#pwm_min1=110 #these are global values
+pwm_max1=255 #used for broken loop, best to leave at max
 pwm1_mintrip=25000
-pwm_min1_1=120 #pwm when below this point
-pwm1_maxtrip=35000
+pwm_min1_1=100 #pwm when below this point
+pwm1_maxtrip=32500
 pwm_max1_1=255 #pwm when over this point
 pwm_min2=0
 pwm_max2=255
 pwm2_mintrip=10000
 pwm_min2_1=0
-pwm2_maxtrip=17000
+pwm2_maxtrip=20000
 pwm_max2_1=255
 half=0.5
-C1=50       # controller bias values (Integration constants)
-C2=50       #
-I1max=180    # Max value of integrator 1
-I1min=0    # Min value of integrator 1
-I1init=100    # initial value of integrator 1
-I2max=235    # Max value of integrator 2
-I2min=0   # Min value of integrator 2
+C1=0       # controller bias values (Integration constants)
+C2=25       #
+I1max=255    # Max value of integrator 1
+I1min=110    # Min value of integrator 1
+I1init=110    # initial value of integrator 1
+I2max=180    # Max value of integrator 2
+I2min=-20   # Min value of integrator 2
 I2init=100    # initial value of integator 2
-Tmax=55000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
+Tmax=40000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
 #Tmaxcmd     #additional command to run when Tmax reched
 Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
 #Tmaxhystcmd #additional command to run when Tmaxhyst reached
@@ -58,7 +58,25 @@ pwm2path=$SuperIo/pwm3
 pwm2en=$SuperIo/pwm3_enable
 fan=$SuperIo/fan1_input
 temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
+###########################
+gov_restart=conservative
+gov_throttle=powersave
+f0=4000000
+t0=30000
+f1=3600000
+t1=32000
+f2=3400000
+t2=34000
+f3=2800000
+t3=36000
+f4=2100000
+t4=38000
+f5=1400000
+t5=40000
 ######################################################################
+for z in {0..7}
+do cpufreq-set -c $z -g $gov_restart -u 4000000
+done
 echo 1 > $pwm1en &           #enable pwm
 echo 1 > $pwm2en &           #enable pwm
 wait
@@ -96,7 +114,7 @@ I2=$I2init
 ##begin main loop
 
 while [ $T0 -lt $Tmax ] #break loop when T>Tmax
-       do time {
+       do {
           T5=$T4
           T4=$T3
           T3=$T2
@@ -130,6 +148,7 @@ if [ $T0 -gt $pwm1_maxtrip ]
  then
  pwm_new1=$pwm_max1_1
  pwm_raw1=$pwm_max1_1
+ I1=$I1max
  elif [ $T0 -lt $pwm1_mintrip ]
  then
  pwm_new1=$pwm_min1_1
@@ -188,6 +207,7 @@ if [ $T0 -gt $pwm2_maxtrip ]
  then
  pwm_new2=$pwm_max2_1
  pwm_raw2=$pwm_max2_1
+ I2=$I2max
  elif [ $T0 -lt $pwm2_mintrip ]
  then
  pwm_new2=$pwm_min2_1
@@ -241,6 +261,9 @@ done
 #loop broken for cooling and reinitialisation
 
 echo Too hot, fans on max
+#for z in {0..7}
+#do cpufreq-set -c $z -g $gov_throttle
+#done
 echo $pwm_max1 > $pwm1path &
 echo $pwm_max2 > $pwm2path &
 echo 0 > $pwm1en
@@ -251,5 +274,16 @@ until [ $T0 -lt $Tmaxhyst ]
   do sleep 1
   T0=$(cat $temp1)
   echo T0 = $T0
+#  for j in 5 4 3 2 1 0
+#    do { 
+#    if [ T0 -lt '$'t$j ]
+#      then { 
+#        for z in {0..7}
+#          do cpufreq-set -c $z -u f$j
+#        done
+#         }
+#        fi
+#         }
+#  done
 done
 exec $0 #start from the beginning when cool
