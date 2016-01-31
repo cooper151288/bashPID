@@ -1,13 +1,19 @@
 #!/bin/bash
 ################initialisation:
+
 ##global values##
-dt=1        # Time base
+
+dtsave=1        # Time base
+dt=$dtsave
+t=1             #time for overtemperature loop
 half=0.5
 Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
 Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
 SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
 fan=$SuperIo/fan1_input
 temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
+coolsleep=1 #additional time to wait when tmaxhyst reached
+
 ###cooling device 1
 p1=0.025            #Proportional gain
 i1=0.0025           #Integral gain
@@ -19,42 +25,46 @@ C1=0   # controller bias values (Integration constants)
 I1max=255    # Max value of integrator 1
 I1min=110    # Min value of integrator 1
 I1init=110    # initial value of integrator 1
+
 ##trip 1 for cdev 1
+s1=25000            #set point
 pwm1_mintrip=22500
-pwm_min1_1=100            #pwm when below pwm1_mintrip
+pwm_min1_1=120            #pwm when below pwm1_mintrip
 pwm1_maxtrip=27500
 pwm_max1_1=255            #pwm when over this point
-s1=25000            #set point
+
 #cooling device 2
-p2=0.025     
+p2=0.025
 i2=0.0025
 d2=0.0000025
 pwm_max2=255
 pwm2path=$SuperIo/pwm3
 pwm2en=$SuperIo/pwm3_enable
 C2=25
-I2max=180    # Max value of integrator 2
+I2max=300    # Max value of integrator 2
 I2min=-20   # Min value of integrator 2
 I2init=100    # initial value of integator 2
 ##trip 1 for cdev 2
-pwm2_mintrip=7500
+
+pwm2_mintrip=12500
 pwm_min2_1=0
-pwm2_maxtrip=15000
+pwm2_maxtrip=17500
 pwm_max2_1=255
-s2=10000
+s2=15000
 #####cpufreq cooling
+
 gov_restart=conservative
 gov_throttle=powersave
 f0=4000000 #frequency states
-#t0=30000   
+#t0=30000
 f1=3600000
 t1=30000   ## corresponding temperatures; t0 is unused
 f2=3400000
-t2=31000
+t2=35000
 f3=2800000
-t3=32000
+t3=40000
 f4=2100000
-t4=33000
+t4=45000
 f5=1400000
-t5=34000
-core=$(($nproc - 1))
+t5=50000
+#core=$(($nproc - 1))
