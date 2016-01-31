@@ -16,64 +16,7 @@
 #
 #DESIRED: online tuning and autotune
 ################initialisation:
-
-dt=1        # Time base
-p1=0.025       # unit is pwm/millidegree
-p2=0.025
-i1=0.0025      # pwm seconds per millidegree
-i2=0.0025
-d1=0.0000025
-d2=0.0000025
-s1=25000
-s2=15000 # Set point (millidegrees)
-#pwm_min1=110 #these are global values
-pwm_max1=255 #used for broken loop, best to leave at max
-pwm1_mintrip=22500
-pwm_min1_1=100 #pwm when below this point
-pwm1_maxtrip=27500
-pwm_max1_1=255 #pwm when over this point
-pwm_min2=0
-pwm_max2=255
-pwm2_mintrip=10000
-pwm_min2_1=0
-pwm2_maxtrip=20000
-pwm_max2_1=255
-half=0.5
-C1=0       # controller bias values (Integration constants)
-C2=25       #
-I1max=255    # Max value of integrator 1
-I1min=110    # Min value of integrator 1
-I1init=110    # initial value of integrator 1
-I2max=180    # Max value of integrator 2
-I2min=-20   # Min value of integrator 2
-I2init=100    # initial value of integator 2
-Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
-#Tmaxcmd     #additional command to run when Tmax reched
-Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
-#Tmaxhystcmd #additional command to run when Tmaxhyst reached
-SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
-pwm1path=$SuperIo/pwm1
-pwm1en=$SuperIo/pwm1_enable
-pwm2path=$SuperIo/pwm3
-pwm2en=$SuperIo/pwm3_enable
-fan=$SuperIo/fan1_input
-temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
-###########################
-gov_restart=conservative
-gov_throttle=powersave
-f0=4000000
-t0=30000
-f1=3600000
-t1=32000
-f2=3400000
-t2=34000
-f3=2800000
-t3=36000
-f4=2100000
-t4=38000
-f5=1400000
-t5=40000
-######################################################################
+source config
 for z in {0..7}
 do cpufreq-set -c $z -g $gov_restart -u 4000000
 done
@@ -89,22 +32,25 @@ pwm_old2=$(cat $pwm2path)                           #setup pwm_old
 pwm_raw1=$pwm_old1                                  #setup raw pwm
 pwm_raw2=$pwm_old2
 ##set up old temps - only needed for weighted average derivative
-T5=$(cat $temp1)
+for a in {5..0}; 
+  do export T$a=$(cat $temp1)
+  done
+#T5=$(cat $temp1)
 #E5=$(($T5 - $s1))
 #sleep $dt
-T4=$(cat $temp1)
+#T4=$(cat $temp1)
 #E4=$(($T4 - $s1))
 #sleep $dt
-T3=$(cat $temp1)
+#T3=$(cat $temp1)
 #E3=$(($T3 - $s1))
 #sleep $dt
-T2=$(cat $temp1)
+#T2=$(cat $temp1)
 #E2=$(($T2 - $s1))
 #sleep $dt
-T1=$(cat $temp1)
+#T1=$(cat $temp1)
 #E1=$(($T1 - $s1))
 #sleep $dt
-T0=$(cat $temp1)
+#T0=$(cat $temp1)
 #E0=$(($T0 - $s1))
 
 O1=$C1
@@ -256,44 +202,71 @@ fi
 echo $pwm_new2 > $pwm2path &           #change. be careful.
 ################################end of pwm2##################
 #########frequency scaler#####
-      
+    if [ $T0 -lt $Tmaxhyst ]
+    then
+    :
+    else
+    { 
     if [ $T0 -gt $t5 ]
       then { 
         for z in {0..7}
-          do cpufreq-set -c $z -u $f5
+          do cpufreq-set -c $z -u $f5 -g $gov_throttle
         done
-         }
-    elif [ $T0 -gt $t4 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f4
-           done
-            }
-     elif [ $T0 -gt $t3 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f3
-           done
-            }
-    elif [ $T0 -gt $t2 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f2
-           done
-            }
-    elif [ $T0 -gt $t1 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f1
-           done
-            }
+         } &
+#         else
+#         then
+#         for a in {4..1}
+#         do { 
+#         if [$T0 -gt $(eval echo \$t$a)
+#               then { 
+#        for z in {0..7}
+#          do cpufreq-set -c $z -u $(eval echo \$f$a)
+#           done
+#           }
+#          fi
+#           }
+#          done
+#           }
     elif [ $T0 -lt $t1 ]
       then { 
+      echo $f0
         for z in {0..7}
-          do cpufreq-set -c $z -u $f0
+          do cpufreq-set -c $z -u $f0 -g $gov_restart
+          continue
+           done
+            } &
+    elif [ $T0 -ge $t4 ]
+      then { 
+      echo $f4
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f4 -g $gov_restart
+          
+           done
+            }
+     elif [ $T0 -ge $t3 ]
+      then { 
+      echo $f3
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f3 -g $gov_restart        
+           done
+            }
+    elif [ $T0 -ge $t2 ]
+      then { 
+      echo $f2
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f2 -g $gov_restart
+           done
+            }
+    elif [ $T0 -ge $t1 ]
+      then { 
+      echo $f1
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f1 -g $gov_restart         
            done
             }
         fi 
+         }
+         fi
 #############end of frequency scaler
  }
 done
@@ -311,45 +284,60 @@ echo 0 > $pwm2en
 
 
 until [ $T0 -lt $Tmaxhyst ]
-  do sleep 0.25
+  do :
   T0=$(cat $temp1)
   echo T0 = $T0
-    if [ $T0 -gt $t5 ]
+    if [ $T0 -ge $t5 ]
       then { 
+      echo $f5
         for z in {0..7}
-          do cpufreq-set -c $z -u $f5
+          do cpufreq-set -c $z -u $f5 -g $gov_throttle
         done
-         }
-    elif [ $T0 -gt $t4 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f4
-           done
-            }
-     elif [ $T0 -gt $t3 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f3
-           done
-            }
-    elif [ $T0 -gt $t2 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f2
-           done
-            }
-    elif [ $T0 -gt $t1 ]
-      then { 
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f1
-           done
-            }
+         t=0.025
+          }
     elif [ $T0 -lt $t1 ]
       then { 
+      echo $f0
         for z in {0..7}
-          do cpufreq-set -c $z -u $f0
+          do cpufreq-set -c $z -u $f0 -g $gov_restart
+          continue
            done
+           t=1
+            }
+    elif [ $T0 -ge $t4 ]
+      then { 
+      echo $f4
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f4 -g $gov_restart
+           done
+           t=0.05
+            }
+     elif [ $T0 -ge $t3 ]
+      then { 
+      echo $f3
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f3 -g $gov_restart        
+           done
+           t=0.1
+            }
+    elif [ $T0 -ge $t2 ]
+      then { 
+      echo $f2
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f2 -g $gov_restart
+           done
+           t=0.25
+            }
+    elif [ $T0 -ge $t1 ]
+      then { 
+      echo $f1
+        for z in {0..7}
+          do cpufreq-set -c $z -u $f1 -g $gov_restart         
+           done
+           t=0.5
             }
         fi 
+sleep $t
 done
+sleep 20
 exec $0 #start from the beginning when cool
