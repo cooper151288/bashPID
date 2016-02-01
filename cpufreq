@@ -1,0 +1,53 @@
+#!/bin/bash
+freq_path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies
+freq_available=$(cat $freq_path)
+freq_list=($(echo $freq_available | tr " " "\n" | sort -nr)) #this is an array
+#while :
+#  do :
+  cores=$(($(nproc) - 1))
+   for i in $(seq 0 $cores)
+    do echo -en $i "\t"
+#  done
+ sleep 0.$(($i * 2))"1"
+ echo
+ done
+numfreq=$(($(echo $freq_available | wc -w) -1))
+#numfreq=$(($numfreq - 1))
+#echo path $freq_path
+#echo available $freq_available
+#echo list $freq_list
+#echo 3rd freq ${freq_available[3]}
+echo 3rd ${freq_list[3]}
+echo 3rd ${freq_list[*]}
+#echo n $numfreq
+#for o in $(seq 0 $numfreq)
+#  do echo ${freq_list[$o]}
+# sleep 1
+#done
+Thot=10000
+Tstep=10
+temp=/sys/devices/virtual/thermal/thermal_zone11/temp
+   T0=$(cat $temp)
+while [ $T0 -le 50000 ]
+  do T0=$(cat $temp)
+  echo temp $T0
+  if [ $T0 -le $Thot ]
+    then
+      j=0
+      f=${freq_list[0]}
+    else
+     K=$(($T0 - $Thot))
+     j=$(($K / Tstep))
+      if [ $j -ge $numfreq ]
+        then j=$numfreq
+       elif [ $j -le 0 ]
+        then j=0
+      fi
+     f=${freq_list[$j]}
+  fi
+    echo new j $j
+    echo new freq $f
+    sleep 0.1
+    done
+
+

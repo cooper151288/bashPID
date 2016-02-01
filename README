@@ -1,5 +1,6 @@
 # bashPID
 
+-NEW config file cleaned up and referenced in the script.
 This script implements a PID controller using bash and bc
 The sensor I used is k10temp and the output is the pwms on my it8728, using the IT87 module.
 NEW: basic CPU frequency throttling.
@@ -13,7 +14,6 @@ DEPENDENCIES:
 -a temperature sensor that detects a temperature that is influenced by the fan.
 -cpufrequtils (for frequency throttling). The command cpufreq-set is used to adjust the maximum frequency.
 TODO:
--config file #looks fairly close to being in use- just use the main script for now.
 -easier temp/cdev paths ## now using variables for pathnames
 -better anti-windup #integrator now maxes when temperature is over its trip range
 -other cooling controls ie better cpufreq, ACPI throttle
