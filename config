@@ -1,19 +1,21 @@
 #!/bin/bash
 ################initialisation:
-
-##global values##
-
-dtsave=1        # Time base
+##########global values################
+dtsave=1                      # Time base, used to clamp dt
 dt=$dtsave
+#dtnano=$(($dt * 1000000000))     #dt in ns
+#timesteps=6    #timesteps for T0-T5
 t=1             #time for overtemperature loop
 half=0.5
-Tmax=30000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
+Tmax=40000        #Max temperature, disable pwms (or whatever to get full fanspeed/cooling), sleep
 Tmaxhyst=20000    #Hysteresis value for Tmax. Script starts from beginning once reached
 SuperIo=/sys/devices/platform/it87.552           #store SuperIo path to make it easier to read and write for devices
 fan=$SuperIo/fan1_input
 temp1=/sys/devices/pci0000:00/0000:00:18.3/hwmon/hwmon*/temp1_input
 coolsleep=1 #additional time to wait when tmaxhyst reached
-
+###### arrays for global values####
+#
+###################################
 ###cooling device 1
 p1=0.025            #Proportional gain
 i1=0.0025           #Integral gain
@@ -25,15 +27,13 @@ C1=0   # controller bias values (Integration constants)
 I1max=255    # Max value of integrator 1
 I1min=110    # Min value of integrator 1
 I1init=110    # initial value of integrator 1
-
-##trip 1 for cdev 1
-s1=25000            #set point
-pwm1_mintrip=22500
+###########trip 1 for cdev 1##################
+s1=30000            #set point
+pwm1_mintrip=25000
 pwm_min1_1=120            #pwm when below pwm1_mintrip
-pwm1_maxtrip=27500
+pwm1_maxtrip=35000
 pwm_max1_1=255            #pwm when over this point
-
-#cooling device 2
+##################cooling device 2###############
 p2=0.025
 i2=0.0025
 d2=0.0000025
@@ -44,27 +44,52 @@ C2=25
 I2max=300    # Max value of integrator 2
 I2min=-20   # Min value of integrator 2
 I2init=100    # initial value of integator 2
-##trip 1 for cdev 2
-
-pwm2_mintrip=12500
+##########trip 1 for cdev 2#####################
+s2=10000
+pwm2_mintrip=7500
 pwm_min2_1=0
-pwm2_maxtrip=17500
+pwm2_maxtrip=12500
 pwm_max2_1=255
-s2=15000
-#####cpufreq cooling
-
+##########################cpufreq cooling -old type
 gov_restart=conservative
 gov_throttle=powersave
-f0=4000000 #frequency states
 #t0=30000
-f1=3600000
-t1=30000   ## corresponding temperatures; t0 is unused
-f2=3400000
-t2=35000
-f3=2800000
-t3=40000
-f4=2100000
-t4=45000
-f5=1400000
-t5=50000
-#core=$(($nproc - 1))
+#t1=40000   ## corresponding temperatures; t0 is unused
+#t2=45000   ## may use these again
+#t3=48000
+#t4=49000
+#t5=50000
+##############################new cpufreq cooling
+freq_path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies
+freq_available=$(cat $freq_path)
+freq_list=($(echo $freq_available | tr " " "\n" | sort -nr)) #this is an array
+cores=$(($(nproc) - 1))
+numfreq=$(($(echo $freq_available | wc -w) -1))
+Thot=40000
+Tstep=2000
+echo $cores ${freq_list[*]} $numfreq
+################
+#set up arrays#
+###############################state arrays
+#pwmold=($pwm_old1 $pwm_old2)
+#rawpwm=($pwm_raw1 $pwm_raw2)
+##array of arrays to store errors?
+################################trip arrays
+trippath=(${path[0]} ${path[1]})
+tripmin=($pwm1_mintrip $pwm2_mintrip)
+tripmax=($pwm1_maxtrip $pwm2_maxtrip)
+pwm_mintrip=($pwm_min1_1 $pwm_min2_1)
+pwm_maxtrip=($pwm_min1_1 $pwm_min2_1)
+s=($s1 $s2)
+#####################tuning arrays
+p=($p1 $p2)
+i=($i1 $i2)
+d=($d1 $d2)
+pwm_max=($pwm_max1 $pwm_max2)
+path=($pwm1path $pwm2path)
+C=($C1 $C2)
+Imax=($I1max $I2max)
+Imin=($I1min $I2min)
+Iinit=($I1init $I2init)
+##############################
+################################

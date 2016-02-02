@@ -2,10 +2,11 @@
 #A PID fan controller
 #Depenencies: bash, GNU bc
 #Matt Cooper, 2015
-# TODO: config file, generic sensor/cdev
+# TODO: -more arrays, functions, timing using nanosecond times
+#       -parallel execution
 #
-# - Experimental cpufreq support!
-#   
+# - Improved cpufreq support!
+#
 # - Would precision timing be better? Code
 #   assumes that calculation time is negligible,
 #   could use date time to give system time in ns
@@ -14,8 +15,8 @@
 #DESIRED: online tuning and autotune
 ################initialisation:
 source config
-for z in {0..7}
-do cpufreq-set -c $z -g $gov_restart -u 4000000
+for z in $(seq 0 $cores)
+do cpufreq-set -c $z -g $gov_restart -u ${freq_list[0]}
 done
 echo 1 > $pwm1en &           #enable pwm
 echo 1 > $pwm2en &           #enable pwm
@@ -32,61 +33,52 @@ pwm_raw2=$pwm_old2
 for a in {5..0}; 
   do export T$a=$(cat $temp1)
   done
-#T5=$(cat $temp1)
-#E5=$(($T5 - $s1))
-#sleep $dt
-#T4=$(cat $temp1)
-#E4=$(($T4 - $s1))
-#sleep $dt
-#T3=$(cat $temp1)
-#E3=$(($T3 - $s1))
-#sleep $dt
-#T2=$(cat $temp1)
-#E2=$(($T2 - $s1))
-#sleep $dt
-#T1=$(cat $temp1)
-#E1=$(($T1 - $s1))
-#sleep $dt
-#T0=$(cat $temp1)
-#E0=$(($T0 - $s1))
+T=($(cat $temp1) $(cat $temp1) $(cat $temp1) $(cat $temp1) $(cat $temp1) $(cat $temp1) )
 
 O1=$C1
 O2=$C2
+O=($C1 $C2)
 I1=$I1init
 I2=$I2init
+I=($I1init $I2init)
 ##begin main loop
 
 while [ $T0 -lt $Tmax ] #break loop when T>Tmax
-       do time {
+       do {
           T5=$T4
-          T4=$T3
-          T3=$T2
-          T2=$T1
-          T1=$T0
-date '+%S%N'
+         T4=$T3
+        T3=$T2
+       T2=$T1
+      T1=$T0
+#      for x in {5..1}
+#      do : 
+#      T[$x]=${T[$(($x - 1))]}
+#      done
+time[0]=$(date '+%S%N')
 #########
 sleep $dt
 #########
-clear
+#clear
        T0=$(cat $temp1)
 ##temp functions now stored
 ##################################console output for user
 date
-echo s1 = $s1 s2 = $s2
+echo setpoints are ${s[*]}
+#echo -e "setpoints" ${$s[*]} "\n" "pwm1" $(cat $pwm1path) "pwm2" $(cat $pwm2path) "\n"
 echo pwm1 $(cat $pwm1path) pwm2 $(cat $pwm2path)
 echo pwm_new1 = $pwm_new1 pwm_new2 = $pwm_new2
 echo Fan Speed = $(cat $SuperIo/fan1_input) 
 #echo pwm_raw1 = $pwm_raw1 pwm_raw2 = $pwm_raw2
 echo P1 = $P1, P2 = $P2, I1 = $I1, I2 = $I2, D1 = $D1, D2 = $D2
 #echo O1 = $O1 O2 = $O2
-#echo T5 = $T5 T4 = $T4 T3 = $T3 T2 = $T2 T1 = $T1 T0 = $T0
+#echo T5 = $T5 T4 = $T4 T3 = $T3 Ts1 = $s1 s2= $s22 = $T2 T1 = $T1 T0 = $T0
 #echo E5 = $E5 E4 = $E4 E3 = $E3 E2 = $E2 E1 = $E1 E0 = $E0
 echo T0 = $T0
 ##################################################
-if [[ $T0 -lt $pwm1_mintrip  && T0 -lt $pwm2_mintrip ]]
-  then
-  continue
-fi
+#if [[ $T0 -lt $pwm1_mintrip  && T0 -lt $pwm2_mintrip ]]
+#  then
+#  continue
+#fi
 ###########PID part-do for both sets of constants
 ###################pwm1######################
 if [ $T0 -gt $pwm1_maxtrip ]
@@ -107,6 +99,7 @@ if [ $T0 -gt $pwm1_maxtrip ]
           E2=$(($T2 - $s1))
           E1=$(($T1 - $s1))
           E0=$(($T0 - $s1))
+         # E[0]=($E5 $E4 $E3 $E2 $E1 $E0)
 #Integral - trapezium rule with min/max values
 I1=$(echo "(($i1 * $dt * $half * ($E0 + $E1)) + $I1 )" | bc -l)
 I1int=$(echo "($I1 + 0.5)/1" | bc)               #now an integer
@@ -159,7 +152,7 @@ if [ $T0 -gt $pwm2_maxtrip ]
  pwm_new2=$pwm_min2_1
  pwm_raw2=$pwm_min2_1
  echo $pwm_new2 > $pwm2path &
- continue
+ #continue
  else
 
 {
@@ -204,81 +197,14 @@ pwm_old2=$(echo "($pwm_raw2 + $O2 + 0.5)/1" | bc)
 fi
 echo $pwm_new2 > $pwm2path &           #change. be careful.
 date '+%S%N'
+{ : 
 ################################end of pwm2##################
-#########frequency scaler#####
-#    if [ $T0 -lt $Tmaxhyst ]
-#    then
-#    dt=$dtsave
-#    else
-#    { 
-#    if [ $T0 -gt $t5 ]
-#      then { 
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $f5 -g $gov_throttle
-#        done
-#         dt=0.05
-#         } 
-#         else
-#         then
-#         for a in {4..1}
-#         do { 
-#         if [$T0 -gt $(eval echo \$t$a)
-#               then { 
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $(eval echo \$f$a)
-#           done
-#           }
-#          fi
-#           }
-#          done
-#           }
-#    elif [ $T0 -lt $t1 ]
-#      then { 
-#      echo $f0
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $f0 -g $gov_restart
-#           done
-#            dt=$dtsave
-#            continue
-#            }
-#    elif [ $T0 -ge $t4 ]
-#      then { 
-#      echo $f4
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $f4 -g $gov_restart
-#           done
-#           dt=0.1
-#            }
-#     elif [ $T0 -ge $t3 ]
-#      then { 
-#      echo $f3
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $f3 -g $gov_restart
-#           done
-#           dt=0.2
-#            }
-#    elif [ $T0 -ge $t2 ]
-#      then { 
-#      echo $f2
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $f2 -g $gov_restart
-#           done
-#            }
-#            dt=0.3
-#    elif [ $T0 -ge $t1 ]
-#      then { 
-#      echo $f1
-#        for z in {0..7}
-#          do cpufreq-set -c $z -u $f1 -g $gov_restart
-#           done
-#           dt=0.5
-#            }
-#        fi
-#         }
-#         fi
-#############end of frequency scaler
+ }
+
+ 
  }
 done
+#if [ $T0 -le $Thot ]
 
 #loop broken for cooling and reinitialisation
 
@@ -296,59 +222,23 @@ until [ $T0 -lt $Tmaxhyst ]
   do :
   { 
   T0=$(cat $temp1)
-  echo T0 = $T0
-    if [ $T0 -ge $t5 ]
-      then { 
-      echo $f5
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f5 -g $gov_throttle
-        done
-         t=0.05
-          }
-    elif [ $T0 -lt $t1 ]
-      then { 
-      echo $f0
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f0 -g $gov_restart
-          continue
-           done
-           t=0.5
-            }
-    elif [ $T0 -ge $t4 ]
-      then { 
-      echo $f4
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f4 -g $gov_restart
-           done
-           t=0.1
-            }
-     elif [ $T0 -ge $t3 ]
-      then { 
-      echo $f3
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f3 -g $gov_restart
-           done
-           t=0.2
-            }
-    elif [ $T0 -ge $t2 ]
-      then { 
-      echo $f2
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f2 -g $gov_restart
-           done
-           t=0.3
-            }
-    elif [ $T0 -ge $t1 ]
-      then { 
-      echo $f1
-        for z in {0..7}
-          do cpufreq-set -c $z -u $f1 -g $gov_restart
-           done
-           t=0.4
-            }
-        fi
-sleep $t
-date '+%S.%N'
+     echo temp $T0
+             K=$(($T0 - $Thot))
+             j=$(($K / $Tstep))
+                 if [ $j -ge $numfreq ]
+                  then
+                   j=$numfreq
+                 elif [ $j -le 0 ]
+                  then
+                   j=0
+                 fi
+    t=$(echo "$dtsave / (2^$j)" | bc -l) #poll faster when throttling
+    echo new j $j
+    echo new freq ${freq_list[$j]}
+    for z in $(seq 0 $cores)
+      do cpufreq-set -c $z -u ${freq_list[$j]}
+    done
+ sleep $t
  }
 done
 sleep $coolsleep
