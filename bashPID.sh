@@ -13,38 +13,53 @@
 #   and put that as dt in calcs
 #
 #DESIRED: online tuning and autotune
-################initialisation:
-source devcon
+##### initialisation: load config######
+        source config                 #
+#######################################
 #for z in $(seq 0 $cores)
 #  do cpufreq-set -c "$z" -g "$gov_restart" -u "${freq_list[0]}"
 #done
-echo 1 > "$pwm1en" &           #enable pwm
-echo 1 > "$pwm2en" &           #enable pwm
-wait
 
-#echo "$pwm_max1" > "$pwm1path" &                             #set initial pwm here
-#echo "$pwm_max2" > "$pwm2path" &                             #set initial pwm here
-#sleep 5                                            #use if you want a running start
-#pwm_old1=$(<"$pwm1path")                           #setup pwm_old
-#pwm_old2=$(<"$pwm2path")                          #setup pwm_old
-#pwm_raw1="$pwm_old1"                                  #setup raw pwm
+#for z in $(seq 0 $cores)
+#  do cpufreq-set -c "$z" -u "${freq_list[0]}"
+#done
+{ 
+    echo 1 > "$pwm1en"
+    echo "$pwm_max1" > "$pwm1path"
+ } &                                       #set initial pwm here
+{
+    echo 1 > "$pwm2en" &                        #enable pwm
+    echo "$pwm_max2" > "$pwm2path"             #set initial pwm here
+ } &
+# sleep 2
+#use if you want a running start
+#pwm_old1=$(<"$pwm1path")                     #setup pwm_old
+#pwm_old2=$(<"$pwm2path")                     #setup pwm_old
+#pwm_raw1="$pwm_old1"                         #setup raw pwm
 #pwm_raw2="$pwm_old2"
 ##set up old temps - only needed for weighted average derivative
-for a in {5..0};
+
+  for a in {5..0};
   do read T$a <$temp1
+     sleep $dt
   done
 #T=($(cat $temp1) $(cat $temp1) $(cat $temp1) $(cat $temp1) $(cat $temp1) $(cat $temp1) )
 
 #   for a in {5..0}
-#       do T[$a]=$(<"temp1")
+#       do : 
+#           T[$a]=$(<"$temp1")
 #   done
 
-O1=$C1
-O2=$C2
+pwm_new1=$C1
+pwm_new2=$C2
 #O=($C1 $C2)
+echo "$I1init" > data/I1 &
+echo "$I2init" > data/I2 &
 I1=$I1init
 I2=$I2init
 #I=($I1init $I2init)
+
+###########################################################
 ##begin main loop
 
 while [[ $T0 -lt $Tmax ]] #break loop when T>Tmax
@@ -61,10 +76,11 @@ while [[ $T0 -lt $Tmax ]] #break loop when T>Tmax
 #       done
 
 #deetee[0]=$(date '+%S%N')
+wait
 #########
-sleep "$dt"
+sleep "$dt" &
 #########
-clear
+#clear
           T0=$(<$temp1)
 ##temp functions now stored
 ##################################console output for user
@@ -72,145 +88,122 @@ date
 #echo setpoints are ${s[*]}
 #echo -e "setpoints" ${$s[*]} "\n" "pwm1" $(cat $pwm1path) "pwm2" $(cat $pwm2path) "\n"
 #echo pwm1 $(<$pwm1path) pwm2 $(<$pwm2path)
-#echo pwm_new1 = $pwm_new1 pwm_new2 = $pwm_new2
+echo pwm_new1 = $pwm_new1 pwm_new2 = $pwm_new2
 echo Fan Speed = $(<$fan)
+echo Integrator values from var $I1 $I2
+echo Integrator values from file $(<data/I1) $(<data/I2)
 #echo pwm_raw1 = $pwm_raw1 pwm_raw2 = $pwm_raw2
-echo P1 = "$P1", P2 = "$P2", I1 = "$I1", I2 = "$I2", D1 = "$D1", D2 = "$D2"
+#echo P1 = "$P1", P2 = "$P2", I1 = "$I1", I2 = "$I2", D1 = "$D1", D2 = "$D2"
 #echo O1 = $O1 O2 = $O2
 #echo T5 = $T5 T4 = $T4 T3 = $T3 Ts1 = $s1 s2= $s22 = $T2 T1 = $T1 T0 = $T0
-#echo E5 = $E5 E4 = $E4 E3 = $E3 E2 = $E2 E1 = $E1 E0 = $E0
 echo T0 = $T0
-##################################################th=$SuperIo/pwm3
-#if [[ $T0 -lt $pwm1_mintrip  && T0 -lt $pwm2_mintrip ]]
-#  then
-#  continue
-#fi
+##################################why math when not needed?
+ if [[ $T0 -lt $pwm1_mintrip  && $T0 -lt $pwm2_mintrip ]]
+  then
+   echo "$pwm_min1_1" > "$pwm1path" &
+   echo "$pwm_min2_1" > "$pwm2path" &
+  continue
+ elif [[ $T0 -gt $pwm1_maxtrip  && $T0 -gt $pwm2_maxtrip ]]
+  then
+   echo "$pwm_max1_1" > "$pwm1path" &
+   echo "$pwm_max2_1" > "$pwm2path" &
+   echo $I1max > data/I1 &
+   echo $I2max > data/I2 &
+   I1=$I1max
+   I2=$I2max
+   continue
+  fi
 ###########PID part-do for both sets of constants
 ###################pwm1######################
-echo "trip 1"
-time { 
+{ 
        if [[ $T0 -ge $pwm1_maxtrip ]]
  then
           pwm_new1=$pwm_max1_1
-          pwm_raw1=$pwm_max1_1
           I1=$I1max
      elif [[ $T0 -le $pwm1_mintrip ]]
  then
           pwm_new1=$pwm_min1_1
-          pwm_raw1=$pwm_min1_1
-
- else
-
-{
-          E5=$((T5 - s1))
-          E4=$((T4 - s1))
-          E3=$((T3 - s1))
-          E2=$((T2 - s1))
+     else
           E1=$((T1 - s1))
           E0=$((T0 - s1))
-
-  #       Error1=($E5 $E4 $E3 $E2 $E1 $E0)
-echo "I1"
-time { 
- #Integral - trapezium rule with min/max values
- I1=$(echo "(($i1 * $dt * $half * ($E0 + $E1)) + $I1 )" | bc -l)
- I1int=$(echo "($I1 + 0.5)/1" | bc)               #now an integer
+I1=$(<data/I1)
+echo "(($i1 * $dt * $half * $((E0 + E1))) + $I1 )" | bc -l > data/I1 # read from file not var
+# I1int=$(echo "($I1 + 0.5)/1" | bc)    #now an integer
+I1int=$(cut -d "." -f 1 data/I1)       #truncates rather than rounds but saves a bc call
       if [[ $I1int -ge $I1max ]]
  then
-         I1=$I1max
+          I1=$I1max
+          echo $I1max > data/I1
     elif [[ $I1int -le $I1min ]]
  then
          I1=$I1min
+         echo $I1min > data/I1
       fi
- }
-#echo $I1 > data/I1 &
-#(derivative- use simple definition)
-#D= d * (err_last - err_now) / dt
-#simple derivative
-echo "D1"
-time { 
-D1=$(echo "$d1 *  $((E0 - E1)) / $dt" | bc -l)
-#weighted average of most recent along the dataset
-#D1=$(echo "$d1 * (($(($E0 - $E1)) / $dt) + $(($E0 - $E2)) / (4 * $dt) + $(($E0 - $E3)) / (6 * $dt) + $(($E0 - $E4)) / (8 * $dt) + $(($E0 - $E5)) / (10 * $dt))" | bc -l)
- }
-# Proportional term
-P1=$(echo "$p1 * $E0" | bc -l)
-O1=$(echo "$P1 + $I1 + $D1" | bc -l)
-pwm_raw1=$(echo "$C1 + $O1" | bc -l) # add the constants in
-pwm_new1=$(echo "($pwm_raw1 + 0.5)/1" | bc) #now an integer
-
+I1=$(<data/I1)
+pwm_new1=$(echo "($C1 + ($p1 * $E0) + $I1 + ($d1 * (($((T0 - T1)) / $dt) + $((T0 - T2)) / (4 * $dt) + $((T0 - T3)) / (6 * $dt) + $((T0 - T4))/(8 * $dt) + $((T0 - T5)) / (10 * $dt)) + $half))/1" | bc)
+#pwm_new1=$(echo "($C1 + ($p1 * $E0) + $I1 + ($d1 * ($((T0 - T1)) / $dt) + $((T0 - T2)) / (4 * $dt) + $((T0 - T3)) / (6 * $dt) + $((T0 - T4))/(8 * $dt) + $((T0 - T5)) / (10 * $dt))) + 0.5)/1)" | bc)
+###########################################
      if [[ $pwm_new1 -ge $pwm_max1_1 ]]
 then
          pwm_new1=$pwm_max1_1
-         pwm_raw1=$pwm_max1_1
    elif [[ $pwm_new1 -le $pwm_min1_1 ]]
 then
          pwm_new1=$pwm_min1_1
-         pwm_raw1=$pwm_min1_1
      fi
- }
-fi
-echo $pwm_new1 > $pwm1path &        #these lines do the fanspeed
+     fi
+echo $pwm_new1 > $pwm1path 
+echo pwm_new1 = $pwm_new1
+echo I1 var $I1
+echo I1 file $(<data/I1)
 #deetee[1]=$(date '+%S%N')
- }
+ } &
 ########################end of pwm1################
 ##############################pwm2#################
- time {
+{ 
         if [[ $T0 -ge $pwm2_maxtrip ]]
  then
         pwm_new2=$pwm_max2_1
-        pwm_raw2=$pwm_max2_1
         I2=$I2max
    elif [[ $T0 -le $pwm2_mintrip ]]
  then
         pwm_new2=$pwm_min2_1
-        pwm_raw2=$pwm_min2_1
  else
-
-{
-          E5=$((T5 - s2))
-          E4=$((T4 - s2))
-          E3=$((T3 - s2))
-          E2=$((T2 - s2))
           E1=$((T1 - s2))
           E0=$((T0 - s2))
-echo "I2"
-time { 
-I2=$(echo "(($i2 * $dt * $half * ($E0 + $E1)) + $I2 )" | bc -l)
-I2int=$(echo "($I2 + 0.5)/1" | bc)
-    if [[ $I2int -ge $I2max ]]
-then
-       I2=$I2max
-  elif [[ $I2int -le $I2min ]]
-then
-       I2=$I2min
-     fi
+I2=$(<data/I2)
+echo "(($i2 * $dt * $half * $((E0 + E1))) + $I2 )" | bc -l > data/I2 # read from file not var
+I2int=$(($(cut -d "." -f 1 <data/I2) + 1))       #truncates rather than rounds but saves a bc call
+ { 
+       if [[ $I2int -ge $I2max ]]
+ then
+          I2=$I2max
+          echo $I2 > data/I2
+    elif [[ $I2int -le $I2min || $I2int -le 1 ]]
+ then
+        I2=$I2min
+         echo $I2 > data/I2
+       fi
  }
-#echo $I2 > data/I2 &
-echo "D2"
-time { 
-D2=$(echo "$d2 *  $(($E0 - $E1)) / $dt" | bc -l)
-#D2=$(echo "$d2 *  (($(($E0 - $E1)) / $dt) + $(($E0 - $E2)) / (4 * $dt) + $(($E0 - $E3)) / (6 * $dt) + $(($E0 - $E4)) / (8 * $dt) + $(($E0 - $E5)) / (10 * $dt))" | bc -l)
- }
-P2=$(echo "$p2 * $E0" | bc -l)
-#output O=P+I+D
-O2=$(echo "$P2 + $I2 + $D2" | bc -l)
-pwm_raw2=$(echo "$C2 + $O2" | bc -l) #
-pwm_new2=$(echo "($pwm_raw2 + 0.5)/1" | bc)
-   if [[ $pwm_new2 -ge $pwm_max2_1 ]]
-then
+ { 
+I2=$(<data/I2)
+pwm_new2=$(echo "($C2 + ($p2 * $E0) + $I2 + ($d2 * (($((T0 - T1)) / $dt) + $((T0 - T2)) / (4 * $dt) + $((T0 - T3)) / (6 * $dt) + $((T0 - T4))/(8 * $dt) + $((T0 - T5)) / (10 * $dt)) + $half))/1" | bc)
+      if [[ $pwm_new2 -ge $pwm_max2_1 ]]
+  then
          pwm_new2=$pwm_max2_1
-         pwm_raw2=$pwm_max2_1
- elif [[ $pwm_new2 -le $pwm_min2_1 ]]
-then
+    elif [[ $pwm_new2 -le $pwm_min2_1 ]]
+  then
          pwm_new2=$pwm_min2_1
-         pwm_raw2=$pwm_min2_1
-   fi
+      fi
  }
-fi
-echo "$pwm_new2" > "$pwm2path" &           #change. be careful.
+ fi
+echo "$pwm_new2" > "$pwm2path" &
+echo pwm_new2 = "$pwm_new2"
+echo I2 var = $I2
+echo I2 file = $(<data/I2)
 #deetee[2]=$(date '+%S%N')
- }
+ } &
+
+
 ################################end of pwm2##################
  }
 done
@@ -235,7 +228,7 @@ until [[ "$T0" -lt "$Tmaxhyst" ]]
          j=$((K / Tstep))
                    if [[ $j -ge "$numfreq" ]]
              then
-                      "j=$numfreq"
+                      j="$numfreq"
                  elif [[ $j -le 0 ]]
              then
                       j=0
@@ -252,3 +245,4 @@ until [[ "$T0" -lt "$Tmaxhyst" ]]
 done
 sleep "$coolsleep"
 exec "$0" #start from the beginning when cool. the config will apply changes too.
+
