@@ -1,8 +1,15 @@
 # bashPID
 
+NEW: Less bc calls. the PID calculations now run in the background. each timestep is usually within 1-2ms of the configured dt variable. CPU use (in the main loop) has been halved.
+
+KNOWN BUGS:
+-Sometimes, the call to set the fans to max doesn't work during initialissyion.
+-The pwm values sometimes go below zero and confuse the test brackets. Neither of these crash the program.
+-Intel's Thermal Daemon can confuse the throttling control.
+
 This script implements a PID controller using bash and bc
 The sensor I used is k10temp and the output is the pwms on my it8728, using the IT87 module.
-NEW: basic CPU frequency throttling.
+
 USE AT YOUR OWN RISK
 This is my first program with any real use, so if anyone has ways of improving the script and helping me learn, feel free to make this better!
 DEPENDENCIES: 
@@ -12,20 +19,15 @@ DEPENDENCIES:
 -a fan whose speed can be read from a file that is controlled by -a pwm that can be controlled by writing to a file
 -a temperature sensor that detects a temperature that is influenced by the fan.
 -cpufrequtils (for frequency throttling). The command cpufreq-set is used to adjust the maximum frequency.
+
 TODO:
--config file #looks fairly close to being in use- just use the main script for now.
--easier temp/cdev paths ## now using variables for pathnames
--better anti-windup #integrator now maxes when temperature is over its trip range
+-better anti-windup. integrator now maxes when temperature is over its trip range. While not truly PID, it adds a useful amount of hysteresis.
 -other cooling controls ie better cpufreq, ACPI throttle
--parallelism/concurrency (thinking of a subprocess per trip point). GNU parallel may come in handy here.
--better CPU frequency control. automatic detection of frequency.
--finer granularity CPU control (individual cores)
+-finer granularity CPU control (individual cores/compute units)
 -online parameter adjustment
 -autotune
 -efficiency
 -C/C++ port (when I learn it!)
 
-NOTES:
--The number of CPU cores is not automatically detected (yet)
--Frequency steps are not automatic either (yet)
+NOTE:
 -you will need to tune this for it to be effective on your system. setpoints/PID params WILL vary on different systems.
