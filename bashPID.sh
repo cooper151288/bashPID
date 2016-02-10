@@ -2,17 +2,16 @@
 #A PID fan controller
 #Depenencies: bash, GNU bc
 #Matt Cooper, 2015
-# TODO: -more arrays, functions, timing using nanosecond times
-#       -parallel execution
-#
-# - Improved cpufreq support!
-#
-# - Would precision timing be better? Code
-#   assumes that calculation time is negligible,
-#   could use date time to give system time in ns
-#   and put that as dt in calcs
-#
-#DESIRED: online tuning and autotune
+# TODO: - Use arrays. Itll be easier.
+#       - Functions. Can then implement
+#         arbitrary numbers of cooling devices.
+#       - Avoid bc. Its slow.
+#       - Better output for users.
+#       - Better configuration. Config
+#         script would be nice like pwmconfig
+#       - Adjustment of config while
+#         the loop is running.
+#       - Error handling.
 ##### initialisation: load config######
         source config                 #
 #######################################
