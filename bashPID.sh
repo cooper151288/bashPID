@@ -27,7 +27,7 @@
     echo "$pwm_max1" > "$pwm1path"
  } &                                       #set initial pwm here
 {
-    echo 1 > "$pwm2en" &                        #enable pwm
+    echo 1 > "$pwm2en"                        #enable pwm
     echo "$pwm_max2" > "$pwm2path"             #set initial pwm here
  } &
 # sleep 2
