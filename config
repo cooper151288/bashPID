@@ -53,8 +53,7 @@ pwm_max2_1=255
 ##########################cpufreq cooling -old type
 gov_restart=conservative
 gov_throttle=powersave
-#t0=30000
-#t1=40000   ## corresponding temperatures; t0 is unused
+#t1=40000   ## corresponding temperatures
 #t2=45000   ## may use these again
 #t3=48000
 #t4=49000
@@ -62,7 +61,7 @@ gov_throttle=powersave
 ##############################new cpufreq cooling
 freq_path=/sys/devices/system/cpu/cpu0/cpufreq/scaling_available_frequencies
 read freq_available <$freq_path
-freq_list=($(echo "$freq_available" | tr " " "\n" | sort -nr)) #this is an array
+freq_list=($(echo "$freq_available" | tr " " "\n" | sort -nr)) #this is an array, sorted in numerical order. Some devices have it the other way round in /sys
 cores=$(($(nproc) - 1))
 numfreq=$(($(echo "$freq_available" | wc -w) -1))
 Thot=48000
@@ -71,8 +70,6 @@ Tstep=2000
 ################
 #set up arrays#
 ###############################state arrays
-#pwmold=($pwm_old1 $pwm_old2)
-#rawpwm=($pwm_raw1 $pwm_raw2)
 ##array of arrays to store errors?
 ################################trip arrays
 #trippath=(${path[0]} ${path[1]})
