@@ -87,8 +87,8 @@ clear
   then
    echo "$pwm_max1_1" > "$pwm1path" &
    echo "$pwm_max2_1" > "$pwm2path" &
-   echo $I1max > data/I1 &
-   echo $I2max > data/I2 &
+   echo $I1max > /dev/shm/bashPIDdata/I1 &
+   echo $I2max > /dev/shm/bashPIDdata/I2 &
    I1=$I1max
    I2=$I2max
             {
@@ -125,17 +125,17 @@ clear
           E1=$((T1 - s1))
           E0=$((T0 - s1))
 I1=$(<data/I1)
-echo "(($i1 * $dt * $half * $((E0 + E1))) + $I1 )" | bc -l > data/I1 # read from file not var
+echo "(($i1 * $dt * $half * $((E0 + E1))) + $I1 )" | bc -l > /dev/shm/bashPIDdata/I1 # read from file not var
 # I1int=$(echo "($I1 + 0.5)/1" | bc)    #now an integer
 I1int=$(cut -d "." -f 1 data/I1)       #truncates rather than rounds but saves a bc call
       if [[ $I1int -ge $I1max ]]
  then
           I1=$I1max
-          echo $I1max > data/I1
+          echo $I1max > /dev/shm/bashPIDdata/I1
     elif [[ $I1int -le $I1min ]]
  then
          I1=$I1min
-         echo $I1min > data/I1
+         echo $I1min > /dev/shm/bashPIDdata/I1
       fi
 I1=$(<data/I1)
 pwm_new1=$(echo "($C1 + ($p1 * $E0) + $I1 + ($d1 * (($((T0 - T1)) / $dt) + $((T0 - T2)) / (4 * $dt) + $((T0 - T3)) / (6 * $dt) + $((T0 - T4))/(8 * $dt) + $((T0 - T5)) / (10 * $dt)) + $half))/1" | bc)
@@ -170,7 +170,7 @@ echo $pwm_new1 > $pwm1path
           E0=$((T0 - s2))
 I2=$(<data/I2)
 echo "(($i2 * $dt * $half * $((E0 + E1))) + $I2 )" | bc -l > data/I2 # read from file not var
-I2int=$(($(cut -d "." -f 1 <data/I2) + 1))       #truncates rather than rounds but saves a bc call
+I2int=$(($(cut -d "." -f 1 </dev/shm/bashPIDdata/I2) + 1))       #truncates rather than rounds but saves a bc call
  { 
        if [[ $I2int -ge $I2max ]]
  then
@@ -183,7 +183,7 @@ I2int=$(($(cut -d "." -f 1 <data/I2) + 1))       #truncates rather than rounds b
        fi
  }
  { 
-I2=$(<data/I2)
+I2=$(</dev/shm/bashPIDdata/I2)
 pwm_new2=$(echo "($C2 + ($p2 * $E0) + $I2 + ($d2 * (($((T0 - T1)) / $dt) + $((T0 - T2)) / (4 * $dt) + $((T0 - T3)) / (6 * $dt) + $((T0 - T4))/(8 * $dt) + $((T0 - T5)) / (10 * $dt)) + $half))/1" | bc)
       if [[ $pwm_new2 -ge $pwm_max2_1 ]]
   then
