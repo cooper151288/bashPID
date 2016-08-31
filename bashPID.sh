@@ -39,8 +39,9 @@
 pwm_new1=$C1
 pwm_new2=$C2
 #O=($C1 $C2)
-echo "$I1init" > data/I1 &
-echo "$I2init" > data/I2 &
+mkdir /dev/shm/bashPIDdata
+echo "$I1init" > /dev/shm/bashPIDdata/I1 &
+echo "$I2init" > /dev/shm/bashPIDdata/I2 &
 I1=$I1init
 I2=$I2init
 #I=($I1init $I2init)
@@ -70,17 +71,17 @@ clear
           T0=$(<$temp1)
 ##temp functions now stored
 ##################################console output for user
-date
-
-echo pwm_new1 = $pwm_new1 pwm_new2 = $pwm_new2
-echo Fan Speed = $(<$fan)
-echo Integrator values from file $(<data/I1) $(<data/I2)
-echo T0 = $T0
+#date
+#echo pwm_new1 = $pwm_new1 pwm_new2 = $pwm_new2
+#echo Fan Speed = $(<$fan)
+#echo Integrator values from file $(<data/I1) $(<data/I2)
+#echo T0 = $T0
 ##################################why math when not needed?
  if [[ $T0 -lt $pwm1_mintrip  && $T0 -lt $pwm2_mintrip ]]
   then
    echo "$pwm_min1_1" > "$pwm1path" &
    echo "$pwm_min2_1" > "$pwm2path" &
+   echo Temperature below trip points &
   continue
  elif [[ $T0 -gt $pwm1_maxtrip  && $T0 -gt $pwm2_maxtrip ]]
   then
@@ -149,9 +150,9 @@ then
      fi
      fi
 echo $pwm_new1 > $pwm1path 
-echo pwm_new1 = $pwm_new1
-echo I1 var $I1
-echo I1 file $(<data/I1)
+#echo pwm_new1 = $pwm_new1
+#echo I1 var $I1
+#echo I1 file $(<data/I1)
 #deetee[1]=$(date '+%S%N')
  } &
 ########################end of pwm1################
@@ -194,12 +195,14 @@ pwm_new2=$(echo "($C2 + ($p2 * $E0) + $I2 + ($d2 * (($((T0 - T1)) / $dt) + $((T0
  }
  fi
 echo "$pwm_new2" > "$pwm2path" &
-echo pwm_new2 = "$pwm_new2"
-echo I2 var = $I2
-echo I2 file = $(<data/I2)
+#echo pwm_new2 = "$pwm_new2"
+#echo I2 var = $I2
+#echo I2 file = $(<data/I2)
 #deetee[2]=$(date '+%S%N')
  } &
  
+        if [[ T0 -gt Thot]]
+        then
             {
          K=$((T0 - Thot))
          j=$((K / Tstep))
@@ -217,6 +220,7 @@ echo I2 file = $(<data/I2)
             for z in $(seq 0 "$cores")
               do cpufreq-set -c "$z" -u "${freq_list[$j]}"
             done
+            fi
             }
 ################################end of pwm2##################
  }
